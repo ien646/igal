@@ -12,21 +12,21 @@
   </property>
   <property name="maximumSize">
    <size>
-    <width>1920</width>
-    <height>1080</height>
+    <width>16777215</width>
+    <height>16777215</height>
    </size>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <property name="styleSheet">
-   <string notr="true">background-color: #1A1A1A</string>
+   <string notr="true">background-color: #1E1E1E</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="maximumSize">
     <size>
-     <width>1920</width>
-     <height>1080</height>
+     <width>16777215</width>
+     <height>16777215</height>
     </size>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -50,6 +50,12 @@
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
+      <property name="minimumSize">
+       <size>
+        <width>64</width>
+        <height>64</height>
+       </size>
+      </property>
       <property name="maximumSize">
        <size>
         <width>1920</width>
@@ -58,6 +64,9 @@
       </property>
       <property name="text">
        <string/>
+      </property>
+      <property name="scaledContents">
+       <bool>false</bool>
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>

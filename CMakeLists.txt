@@ -4,10 +4,6 @@ project(igal LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(MSVC)
-    add_definitions(/W0)
-else()
-    add_definitions(-w)
-endif()
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/output)
 
 add_subdirectory(igal)

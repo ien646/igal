@@ -12,9 +12,11 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-add_executable(igal
-    main.cpp
-)
+if(WIN32)
+    add_executable(igal WIN32 main.cpp)
+else()
+    add_executable(igal main.cpp)
+endif()
 
 function(ADD_WIDGET NAME)
     target_sources(igal PRIVATE
@@ -26,8 +28,6 @@ endfunction()
 
 ADD_WIDGET(mainwindow)
 
-target_include_directories(igal PRIVATE ${CMAKE_SOURCE_DIR}/libpng)
-
 target_link_libraries(igal
     Qt5::Core
     Qt5::Gui
@@ -37,6 +37,8 @@ target_link_libraries(igal
 )
 
 if(WIN32)
+    target_sources(igal PRIVATE win32/resources.rc win32/utils.cpp)
+
     set(QT_WINDEPLOY_PATH $ENV{QT_DIR}/bin/windeployqt.exe)
 
     add_custom_command(
