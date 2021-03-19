@@ -18,7 +18,7 @@
 #if defined(WIN32) || defined(_WIN32)
     #include "win32/utils.h"
     #define FSSTR(str) L##str
-    #define FSSYSTEM(arg) _wsystem(arg)
+    #define FSSYSTEM(arg) execProc(arg)
     #define FSSTR_TO_QSTRING(str) QString::fromStdWString(str)
     #define QSTRING_TO_FSSTR(str) str.toStdWString()
 #else    
@@ -476,7 +476,7 @@ fs_str_t getCachedAnimatedPath(const fs_str_t& target)
         initCacheDir(target);
 
         fs_str_t ffmpeg_cmd_mp4 = genFfmpegCmd(target, cached_path);
-        execProc(ffmpeg_cmd_mp4.c_str());
+        FSSYSTEM(ffmpeg_cmd_mp4.c_str());
 
         bool ok = std::filesystem::exists(target);
     }
