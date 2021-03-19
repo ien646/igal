@@ -2,5 +2,6 @@ out/
 build/
 .vs/
 .vscode/
+igal/win32/resources.aps
 CMakeLists.txt.user
 CMakeSettings.json
