@@ -120,11 +120,11 @@ MainWindow::MainWindow(const fs_str_t& target, QWidget* parent) :
     videoInfoFont.setBold(true);
     videoInfoFont.setPixelSize(12);
 
-    videoInfoLabel = std::make_unique<QLabel>(this);
-    videoInfoLabel->setStyleSheet("color: #EEEEEE; background: transparent");
-    videoInfoLabel->setAutoFillBackground(false);
+    videoInfoLabel = std::make_unique<QLabel>(this);   
     videoInfoLabel->setFont(videoInfoFont);
-    videoInfoLabel->hide();
+    videoInfoLabel->setVisible(false);
+    videoInfoLabel->setAutoFillBackground(false);
+    videoInfoLabel->setStyleSheet("color: #EEEEEE;");
 
     centralWidget()->layout()->addWidget(video.get());
     video->setContentsMargins(0, 0, 0, 0);
@@ -215,7 +215,7 @@ void MainWindow::hideVideoInfo()
 
 void MainWindow::togglePauseVideo()
 {
-    if (!video->isVisible())
+    if (!videoMode)
     {
         return;
     }
@@ -241,7 +241,7 @@ void MainWindow::loadRandom()
 
 void MainWindow::toggleMuteVideo()
 {
-    if (!video->isVisible())
+    if (!videoMode)
     {
         return;
     }
@@ -327,21 +327,25 @@ void MainWindow::resetVideoSpeed()
 
 void MainWindow::addZoom(float amount)
 {
-    zoom += amount;
-    if (zoom < 1.0F)
+    if (!videoMode)
     {
-        zoom = 1;
+        zoom += amount;
+        if (zoom < 1.0F)
+        {
+            zoom = 1;
+        }
+        reloadCurrentImage();
     }
-    reloadCurrentImage();
 }
 
 void MainWindow::addOffset(float x, float y)
-{
-    currentX += x;
-    currentY += y;
-    reloadCurrentImage();
-
-    return;
+{    
+    if (!videoMode)
+    {
+        currentX += x;
+        currentY += y;
+        reloadCurrentImage();
+    }    
 }
 
 void MainWindow::resetZoomAndOffset()
@@ -349,8 +353,38 @@ void MainWindow::resetZoomAndOffset()
     zoom = 1;
     currentX = 0;
     currentY = 0;
-    reloadCurrentImage();
+    if (!videoMode)
+    {
+        reloadCurrentImage();
+    };
 }
+
+void MainWindow::hideVideo()
+{
+    videoMode = false;
+    video->setVisible(false);
+    videoInfoLabel->setVisible(false);
+}
+
+void MainWindow::showVideo()
+{
+    videoMode = true;
+    video->setVisible(true);
+    videoInfoLabel->setVisible(true);
+}  
+
+void MainWindow::hideImage()
+{
+    videoMode = true;
+    ui->image_view->setVisible(false);
+}
+
+void MainWindow::showImage() 
+{
+    videoMode = false;
+    ui->image_view->setVisible(true);
+}
+
 
 void MainWindow::keyPressEvent(QKeyEvent* e)
 {
@@ -454,19 +488,19 @@ void MainWindow::keyPressEvent(QKeyEvent* e)
         break;
 
     case Qt::Key_8:
-        addOffset(0, -10);
+        addOffset(0, 20);
         break;
 
     case Qt::Key_6:
-        addOffset(10, 0);
+        addOffset(-20, 0);
         break;
 
     case Qt::Key_4:
-        addOffset(-10, 0);
+        addOffset(20, 0);
         break;
 
     case Qt::Key_2:
-        addOffset(0, 10);
+        addOffset(0, -20);
         break;
 
     case Qt::Key_0:
@@ -487,13 +521,13 @@ T getSign(T val)
 QPixmap MainWindow::getTransformedPixmap(const QPixmap* px)
 {
     // TODO: fix zoom-out overflowing
-    if (!ui->image_view->pixmap() || ui->image_view->pixmap()->isNull())
+    if (!ui->image_view->pixmap(Qt::ReturnByValue) || ui->image_view->pixmap(Qt::ReturnByValue).isNull())
     {
-        return *px;
+        return px->scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
     }
 
-    float pxmapW = ui->image_view->pixmap()->width();
-    float pxmapH = ui->image_view->pixmap()->height();
+    float pxmapW = ui->image_view->pixmap(Qt::ReturnByValue).width();
+    float pxmapH = ui->image_view->pixmap(Qt::ReturnByValue).height();
 
     float maxRadiusX = std::abs((pxmapW - width()) / 2);
     float maxRadiusY = std::abs((pxmapH - height()) / 2);
@@ -525,9 +559,10 @@ QPixmap MainWindow::getTransformedPixmap(const QPixmap* px)
 
 void MainWindow::resizeEvent(QResizeEvent* e)
 {
-    if (!video->isVisible() && !ui->image_view->pixmap(Qt::ReturnByValue).isNull())
+    if (!videoMode && !ui->image_view->pixmap(Qt::ReturnByValue).isNull())
     {
-        ui->image_view->setPixmap(getTransformedPixmap(ui->image_view->pixmap()));
+        QPixmap pxmap = ui->image_view->pixmap(Qt::ReturnByValue);
+        ui->image_view->setPixmap(getTransformedPixmap(&pxmap));
         resizeTimer.start(200);
     }
     QWidget::resizeEvent(e);
@@ -535,7 +570,7 @@ void MainWindow::resizeEvent(QResizeEvent* e)
 
 void MainWindow::resizeEnd()
 {
-    if (!video->isVisible())
+    if (!videoMode)
     {
         reloadCurrentImage();
     }
@@ -586,10 +621,10 @@ fs_str_t getCachedAnimatedPath(const fs_str_t& target)
 
 void MainWindow::playVideo(const fs_str_t& vpath)
 {
-    ui->image_view->setVisible(false);
-    ui->image_view->setPixmap(QPixmap());
+    hideImage();
+    showVideo();    
 
-    video->setVisible(true);
+    ui->image_view->setPixmap(QPixmap());
 
     auto media = QUrl::fromLocalFile(FSSTR_TO_QSTRING(vpath.c_str()));
     
@@ -606,8 +641,7 @@ void MainWindow::playVideo(const fs_str_t& vpath)
 
     std::thread([&]() 
     {
-        while (!video->isVisible()) { continue; }
-        while (video->isVisible())
+        while (videoMode)
         {
             QMetaObject::invokeMethod(this, [&] { showVideoInfo(); });
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -618,14 +652,13 @@ void MainWindow::playVideo(const fs_str_t& vpath)
 
 void MainWindow::playImage(const fs_str_t& ipath)
 {
+    hideVideo();
+    showImage();    
+
     player->stop();
     playlist->clear();
 
-    video->setVisible(false);
-
     currentImage = QImage(FSSTR_TO_QSTRING(ipath));
-
-    ui->image_view->setVisible(true);
 
     QPixmap pxmap = QPixmap::fromImage(*currentImage);
     ui->image_view->setPixmap(getTransformedPixmap(&pxmap));
@@ -635,14 +668,13 @@ void MainWindow::playImage(const fs_str_t& ipath)
 
 void MainWindow::playImage(QImage* image)
 {
+    hideVideo();
+    showImage();    
+
     player->stop();
     playlist->clear();
 
-    video->setVisible(false);
-
     currentImage = *image;
-
-    ui->image_view->setVisible(true);
 
     QPixmap pxmap = QPixmap::fromImage(*currentImage);
     ui->image_view->setPixmap(getTransformedPixmap(&pxmap));
@@ -760,13 +792,14 @@ void MainWindow::loadSurroundingNext()
 
 void MainWindow::previousItem()
 {
+    resetZoomAndOffset();
     if (!itemListReady || itemListIndex == 0)
     {
         return;
     }
 
     --itemListIndex;
-    if (surroundingPrevReady && surroundingPrev && !surroundingPrev.value().isNull() && !video->isVisible())
+    if (surroundingPrevReady && surroundingPrev && !surroundingPrev.value().isNull())
     {
         surroundingNext = currentImage;
         nextName = target;
@@ -785,15 +818,23 @@ void MainWindow::previousItem()
 
 void MainWindow::nextItem()
 {
+    resetZoomAndOffset();
     if (!itemListReady || (itemListIndex) == itemList.size() - 1)
     {
         return;
     }
     ++itemListIndex;
-    if (surroundingNextReady && surroundingNext.has_value() && !surroundingNext.value().isNull() && !video->isVisible())
+    if (surroundingNextReady && surroundingNext.has_value() && !surroundingNext.value().isNull())
     {
-        surroundingPrev = currentImage;
-        prevName = target;
+        if (!videoMode)
+        {
+            surroundingPrev = currentImage;
+            prevName = target;
+        }
+        else
+        {
+            loadSurroundingPrev();
+        }
 
         target = nextName;
         setWindowTitle(FSSTR_TO_QSTRING(getTargetFilename(nextName)));
@@ -809,6 +850,7 @@ void MainWindow::nextItem()
 
 void MainWindow::loadFirstItem()
 {
+    resetZoomAndOffset();
     if (!itemListReady)
     {
         return;
@@ -820,6 +862,7 @@ void MainWindow::loadFirstItem()
 
 void MainWindow::loadLastItem()
 {
+    resetZoomAndOffset();
     if (!itemListReady)
     {
         return;

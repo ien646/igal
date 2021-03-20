@@ -85,6 +85,14 @@ private:
     void addOffset(float x, float y);
     void resetZoomAndOffset();
 
+    void hideVideo();
+    void showVideo();
+
+    void hideImage();
+    void showImage();
+
+    bool videoMode = false;
+
     std::unique_ptr<Ui::MainWindow> ui;
     fs_str_t target;
     fs_str_t currentDir;
