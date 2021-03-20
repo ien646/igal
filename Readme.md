@@ -29,3 +29,8 @@
 * C++17 compatible compiler
 * Qt5
 * Set ${QT_DIR} to Qt SDK path (example on Windows: C:\Qt\5.15.2\msvc2019_64)
+
+## **Usage requirements**
+
+* `ffmpeg` in PATH
+* Appropiate video drivers for input formats
