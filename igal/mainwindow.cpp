@@ -634,9 +634,8 @@ void MainWindow::loadSurroundingPrev()
             std::lock_guard lock(surroundingPrevMux);
             const auto& prevTarget = itemList[idx - 1];
             prevName = prevTarget;
-            fs_str_t ext = getTargetExtension(target);
-
-            if ((ext == FSSTR(".png") && !isAnimatedPng(prevTarget)) || imageExtensions.count(ext))
+            
+            if (isImage(prevTarget))
             {
                 surroundingPrev = QImage(FSSTR_TO_QSTRING(prevTarget));
                 surroundingPrevReady = true;                
@@ -656,9 +655,8 @@ void MainWindow::loadSurroundingNext()
             std::lock_guard lock(surroundingNextMux);
             const auto& nextTarget = itemList[idx + 1];
             nextName = nextTarget;
-            fs_str_t ext = getTargetExtension(target);
 
-            if ((ext == FSSTR(".png") && !isAnimatedPng(nextTarget)) || imageExtensions.count(ext))
+            if (isImage(nextTarget))
             {
                 surroundingNext = QImage(FSSTR_TO_QSTRING(nextTarget));
                 surroundingNextReady = true;                
