@@ -750,13 +750,12 @@ void MainWindow::loadItem()
 
 void MainWindow::loadSurroundingPrev()
 {
-    surroundingPrevReady = false;
-
     if (itemListIndex != 0)
     {
         std::thread([&, idx = itemListIndex]()
         {
             std::lock_guard lock(surroundingPrevMux);
+            surroundingPrevReady = false;
             const auto& prevTarget = itemList[idx - 1];
             prevName = prevTarget;
             
@@ -771,13 +770,12 @@ void MainWindow::loadSurroundingPrev()
 
 void MainWindow::loadSurroundingNext()
 {
-    surroundingNextReady = false;
-
     if (itemListIndex < itemList.size() - 1)
     {
         std::thread([&, idx = itemListIndex]()
         {
             std::lock_guard lock(surroundingNextMux);
+            surroundingNextReady = false;
             const auto& nextTarget = itemList[idx + 1];
             nextName = nextTarget;
 
@@ -801,8 +799,16 @@ void MainWindow::previousItem()
     --itemListIndex;
     if (surroundingPrevReady && surroundingPrev && !surroundingPrev.value().isNull())
     {
-        surroundingNext = currentImage;
-        nextName = target;
+        if (!videoMode)
+        {
+            surroundingNext = currentImage;
+            nextName = target;
+        }
+        else
+        {
+            surroundingNext = std::nullopt;
+            nextName = FSSTR("");
+        }
 
         target = prevName;
         setWindowTitle(FSSTR_TO_QSTRING(getTargetFilename(prevName)));
@@ -833,7 +839,8 @@ void MainWindow::nextItem()
         }
         else
         {
-            loadSurroundingPrev();
+            surroundingPrev = std::nullopt;
+            prevName = FSSTR("");
         }
 
         target = nextName;
