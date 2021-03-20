@@ -46,9 +46,9 @@ private slots:
 
 private:
     void loadItem();
-    void loadImage(QPixmap* pixmap);
+    void loadImage(QImage* pixmap);
     void playImage(const fs_str_t& path);
-    void playImage(QPixmap* pixmap);
+    void playImage(QImage* pixmap);
     void playVideo(const fs_str_t& vpath);
 
     void previousItem();
@@ -78,6 +78,8 @@ private:
     void decreaseVideoSpeed(float v);
     void resetVideoSpeed();
 
+    QPixmap getTransformedPixmap(const QPixmap*);
+
     std::unique_ptr<Ui::MainWindow> ui;
     fs_str_t target;
     fs_str_t currentDir;
@@ -90,12 +92,17 @@ private:
     std::vector<fs_str_t> itemList;
 
     std::mutex surroundingNextMux, surroundingPrevMux;
-    std::optional<QPixmap> surroundingNext;
-    std::optional<QPixmap> surroundingPrev;
+    std::optional<QImage> surroundingNext;
+    std::optional<QImage> surroundingPrev;
+    std::optional<QImage> currentImage;
     std::atomic<bool> surroundingNextReady = false;
     std::atomic<bool> surroundingPrevReady = false;
     fs_str_t prevName;
     fs_str_t nextName;
+
+    float currentX = 0;
+    float currentY = 0;
+    float zoom = 1.0F;
 
     size_t itemListIndex = 0;
 

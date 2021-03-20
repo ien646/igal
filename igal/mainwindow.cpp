@@ -423,11 +423,18 @@ void MainWindow::keyPressEvent(QKeyEvent* e)
     }
 }
 
+QPixmap MainWindow::getTransformedPixmap(const QPixmap* px)
+{
+    QPixmap result = *px;
+    result.scroll(currentX, currentY, result.rect());
+    return result.scaled(size() * zoom, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+}
+
 void MainWindow::resizeEvent(QResizeEvent* e)
 {
     if (!video->isVisible() && !ui->image_view->pixmap(Qt::ReturnByValue).isNull())
-    {        
-        ui->image_view->setPixmap(ui->image_view->pixmap(Qt::ReturnByValue).scaled(e->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    {
+        ui->image_view->setPixmap(getTransformedPixmap(ui->image_view->pixmap()));
         resizeTimer.start(200);
     }
     QWidget::resizeEvent(e);
@@ -523,26 +530,29 @@ void MainWindow::playImage(const fs_str_t& ipath)
 
     video->setVisible(false);
 
-    QPixmap currentPixmap(FSSTR_TO_QSTRING(ipath));        
-
-    auto size = ui->image_view->size();
+    currentImage = QImage(FSSTR_TO_QSTRING(ipath));
 
     ui->image_view->setVisible(true);
-    ui->image_view->setPixmap(currentPixmap.scaled(ui->image_view->size(), Qt::KeepAspectRatio, Qt::TransformationMode::SmoothTransformation));
 
-    auto size2 = ui->image_view->size();
+    QPixmap pxmap = QPixmap::fromImage(*currentImage);
+    ui->image_view->setPixmap(getTransformedPixmap(&pxmap));
+
     return;
 }
 
-void MainWindow::playImage(QPixmap* pixmap)
+void MainWindow::playImage(QImage* image)
 {
     player->stop();
     playlist->clear();
 
     video->setVisible(false);
 
+    currentImage = *image;
+
     ui->image_view->setVisible(true);
-    ui->image_view->setPixmap(pixmap->scaled(size(), Qt::KeepAspectRatio, Qt::TransformationMode::SmoothTransformation));
+
+    QPixmap pxmap = QPixmap::fromImage(*currentImage);
+    ui->image_view->setPixmap(getTransformedPixmap(&pxmap));
 }
 
 bool isImage(const fs_str_t& target)
@@ -584,7 +594,7 @@ bool isVideo(const fs_str_t& target)
     return videoExtensions.count(getTargetExtension(target));
 }
 
-void MainWindow::loadImage(QPixmap* pixmap)
+void MainWindow::loadImage(QImage* pixmap)
 {
     playImage(pixmap);  
 }
@@ -616,6 +626,7 @@ void MainWindow::loadItem()
 void MainWindow::loadSurroundingPrev()
 {
     surroundingPrevReady = false;
+
     if (itemListIndex != 0)
     {
         std::thread([&, idx = itemListIndex]()
@@ -625,9 +636,9 @@ void MainWindow::loadSurroundingPrev()
             prevName = prevTarget;
             fs_str_t ext = getTargetExtension(target);
 
-            if ((ext == FSSTR(".png") && isAnimatedPng(prevTarget)) || imageExtensions.count(ext))
+            if ((ext == FSSTR(".png") && !isAnimatedPng(prevTarget)) || imageExtensions.count(ext))
             {
-                surroundingPrev = QPixmap(FSSTR_TO_QSTRING(prevTarget));            
+                surroundingPrev = QImage(FSSTR_TO_QSTRING(prevTarget));
                 surroundingPrevReady = true;                
             }
         }).detach();
@@ -647,9 +658,9 @@ void MainWindow::loadSurroundingNext()
             nextName = nextTarget;
             fs_str_t ext = getTargetExtension(target);
 
-            if ((ext == FSSTR(".png") && isAnimatedPng(nextTarget)) || imageExtensions.count(ext))
+            if ((ext == FSSTR(".png") && !isAnimatedPng(nextTarget)) || imageExtensions.count(ext))
             {
-                surroundingNext = QPixmap(FSSTR_TO_QSTRING(nextTarget));
+                surroundingNext = QImage(FSSTR_TO_QSTRING(nextTarget));
                 surroundingNextReady = true;                
             }
         }).detach();
@@ -664,14 +675,14 @@ void MainWindow::previousItem()
     }
 
     --itemListIndex;
-    if (surroundingPrevReady && !video->isVisible())
+    if (surroundingPrevReady && surroundingPrev && !surroundingPrev.value().isNull() && !video->isVisible())
     {
-        surroundingNext = ui->image_view->pixmap(Qt::ReturnByValue);
+        surroundingNext = currentImage;
         nextName = target;
 
         target = prevName;
         setWindowTitle(FSSTR_TO_QSTRING(getTargetFilename(prevName)));
-        loadImage(&(*surroundingPrev));
+        loadImage(&surroundingPrev.value());
     }
     else
     {
@@ -688,14 +699,14 @@ void MainWindow::nextItem()
         return;
     }
     ++itemListIndex;
-    if (surroundingNextReady && !video->isVisible())
+    if (surroundingNextReady && surroundingNext.has_value() && !surroundingNext.value().isNull() && !video->isVisible())
     {
-        surroundingPrev = ui->image_view->pixmap(Qt::ReturnByValue);
+        surroundingPrev = currentImage;
         prevName = target;
 
         target = nextName;
         setWindowTitle(FSSTR_TO_QSTRING(getTargetFilename(nextName)));
-        loadImage(&(*surroundingNext));
+        loadImage(&surroundingNext.value());
     }
     else
     {
