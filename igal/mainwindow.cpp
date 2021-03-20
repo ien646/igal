@@ -21,7 +21,7 @@
     #define FSSYSTEM(arg) execProc(arg)
     #define FSSTR_TO_QSTRING(str) QString::fromStdWString(str)
     #define QSTRING_TO_FSSTR(str) str.toStdWString()
-#else    
+#else
     #define FSSTR(str) str.
     #define FSSYSTEM(arg) system(arg)
     #define FSSTR_TO_QSTRING(str) QString::fromStdString(str)
@@ -34,9 +34,9 @@ const fs_str_t OS_VID_FMT = FSSTR(".mp4");
 
 const std::set<fs_str_t> validExtensions = {
     FSSTR(".jpg"),
-    FSSTR(".jpeg"), 
+    FSSTR(".jpeg"),
     FSSTR(".png"),
-    FSSTR(".gif"), 
+    FSSTR(".gif"),
     FSSTR(".mp4"),
     FSSTR(".webm"),
     FSSTR(".avi"),
@@ -47,18 +47,18 @@ const std::set<fs_str_t> validExtensions = {
 
 const std::set<fs_str_t> imageExtensions = {
     FSSTR(".jpg"),
-    FSSTR(".jpeg"), 
+    FSSTR(".jpeg"),
     FSSTR(".png")
 };
 
 const std::set<fs_str_t> animationExtensions = {
-    FSSTR(".png"), 
+    FSSTR(".png"),
     FSSTR(".gif")
 };
 
 const std::set<fs_str_t> videoExtensions = {
-    FSSTR(".mp4"), 
-    FSSTR(".webm"),     
+    FSSTR(".mp4"),
+    FSSTR(".webm"),
     FSSTR(".avi")
 
 #if defined(WIN32) || defined(_WIN32)
@@ -74,7 +74,7 @@ fs_str_t fsStrToLower(const fs_str_t& src)
 size_t genLargeRand()
 {
     size_t result = 0;
-    for (int i = 0; i < 5; ++i) 
+    for (int i = 0; i < 5; ++i)
     {
         result = (result << 15) | (rand() & 0x7FFF);
     }
@@ -120,7 +120,7 @@ MainWindow::MainWindow(const fs_str_t& target, QWidget* parent) :
     videoInfoFont.setBold(true);
     videoInfoFont.setPixelSize(12);
 
-    videoInfoLabel = std::make_unique<QLabel>(this);   
+    videoInfoLabel = std::make_unique<QLabel>(this);
     videoInfoLabel->setFont(videoInfoFont);
     videoInfoLabel->setVisible(false);
     videoInfoLabel->setAutoFillBackground(false);
@@ -204,7 +204,7 @@ void MainWindow::showVideoInfo()
         posText += " (x" + std::to_string(player->playbackRate()) +")";
     }
     videoInfoLabel->setText(QString::fromStdString(posText));
-    QFontMetricsF met(videoInfoLabel->font());    
+    QFontMetricsF met(videoInfoLabel->font());
     videoInfoLabel->setGeometry(0, 0, met.horizontalAdvance(QString::fromStdString(posText)), videoInfoLabel->font().pixelSize());
 }
 
@@ -339,13 +339,13 @@ void MainWindow::addZoom(float amount)
 }
 
 void MainWindow::addOffset(float x, float y)
-{    
+{
     if (!videoMode)
     {
         currentX += x;
         currentY += y;
         reloadCurrentImage();
-    }    
+    }
 }
 
 void MainWindow::resetZoomAndOffset()
@@ -371,7 +371,7 @@ void MainWindow::showVideo()
     videoMode = true;
     video->setVisible(true);
     videoInfoLabel->setVisible(true);
-}  
+}
 
 void MainWindow::hideImage()
 {
@@ -379,7 +379,7 @@ void MainWindow::hideImage()
     ui->image_view->setVisible(false);
 }
 
-void MainWindow::showImage() 
+void MainWindow::showImage()
 {
     videoMode = false;
     ui->image_view->setVisible(true);
@@ -409,14 +409,7 @@ void MainWindow::keyPressEvent(QKeyEvent* e)
 
     case 'r':
     case 'R':
-        if (altPressed)
-        {
-            resetVideoSpeed();
-        }
-        else
-        {
-            loadRandom();
-        }        
+        loadRandom();
         break;
 
     case 'p':
@@ -424,7 +417,7 @@ void MainWindow::keyPressEvent(QKeyEvent* e)
         togglePauseVideo();
         break;
 
-    case Qt::Key_PageUp:        
+    case Qt::Key_PageUp:
         skipPrev(10);
         break;
 
@@ -434,8 +427,8 @@ void MainWindow::keyPressEvent(QKeyEvent* e)
 
     case Qt::Key_Escape:
         // exit fullscreen
-        if (isFullScreen()) 
-        { 
+        if (isFullScreen())
+        {
             showNormal();
         }
         break;
@@ -468,7 +461,7 @@ void MainWindow::keyPressEvent(QKeyEvent* e)
         {
             nextItem();
         }
-        
+
         break;
 
     case Qt::Key_Home:
@@ -504,7 +497,14 @@ void MainWindow::keyPressEvent(QKeyEvent* e)
         break;
 
     case Qt::Key_0:
-        resetZoomAndOffset();
+        if(altPressed && videoMode)
+        {
+            resetVideoSpeed();
+        }
+        else
+        {
+            resetZoomAndOffset();
+        }
         break;
 
     default:
@@ -622,12 +622,12 @@ fs_str_t getCachedAnimatedPath(const fs_str_t& target)
 void MainWindow::playVideo(const fs_str_t& vpath)
 {
     hideImage();
-    showVideo();    
+    showVideo();
 
     ui->image_view->setPixmap(QPixmap());
 
     auto media = QUrl::fromLocalFile(FSSTR_TO_QSTRING(vpath.c_str()));
-    
+
     playlist->clear();
     playlist->addMedia(media);
     playlist->setCurrentIndex(0);
@@ -639,7 +639,7 @@ void MainWindow::playVideo(const fs_str_t& vpath)
         player->play();
     }
 
-    std::thread([&]() 
+    std::thread([&]()
     {
         while (videoMode)
         {
@@ -653,7 +653,7 @@ void MainWindow::playVideo(const fs_str_t& vpath)
 void MainWindow::playImage(const fs_str_t& ipath)
 {
     hideVideo();
-    showImage();    
+    showImage();
 
     player->stop();
     playlist->clear();
@@ -669,7 +669,7 @@ void MainWindow::playImage(const fs_str_t& ipath)
 void MainWindow::playImage(QImage* image)
 {
     hideVideo();
-    showImage();    
+    showImage();
 
     player->stop();
     playlist->clear();
@@ -721,7 +721,7 @@ bool isVideo(const fs_str_t& target)
 
 void MainWindow::loadImage(QImage* pixmap)
 {
-    playImage(pixmap);  
+    playImage(pixmap);
 }
 
 void MainWindow::loadItem()
@@ -758,11 +758,11 @@ void MainWindow::loadSurroundingPrev()
             surroundingPrevReady = false;
             const auto& prevTarget = itemList[idx - 1];
             prevName = prevTarget;
-            
+
             if (isImage(prevTarget))
             {
                 surroundingPrev = QImage(FSSTR_TO_QSTRING(prevTarget));
-                surroundingPrevReady = true;                
+                surroundingPrevReady = true;
             }
         }).detach();
     }
@@ -782,7 +782,7 @@ void MainWindow::loadSurroundingNext()
             if (isImage(nextTarget))
             {
                 surroundingNext = QImage(FSSTR_TO_QSTRING(nextTarget));
-                surroundingNextReady = true;                
+                surroundingNextReady = true;
             }
         }).detach();
     }
@@ -817,7 +817,7 @@ void MainWindow::previousItem()
     else
     {
         reloadTarget();
-        loadSurroundingNext();        
+        loadSurroundingNext();
     }
     loadSurroundingPrev();
 }
@@ -881,7 +881,7 @@ void MainWindow::loadLastItem()
 
 void MainWindow::reloadTarget()
 {
-    if (itemList.empty())    
+    if (itemList.empty())
     {
         loadItem();
     }
@@ -904,8 +904,8 @@ void MainWindow::setupItemList()
     for (auto f : stdfs::directory_iterator(currentDir))
     {
         fs_str_t ext = getTargetExtension(f.path());
-        if (stdfs::is_regular_file(f) 
-            && f.path().has_extension() 
+        if (stdfs::is_regular_file(f)
+            && f.path().has_extension()
             && validExtensions.count(ext))
         {
             paths.insert({ stdfs::last_write_time(f).time_since_epoch().count(), f.path() });

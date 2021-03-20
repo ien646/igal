@@ -46,4 +46,3 @@ if(WIN32)
         COMMAND ${QT_WINDEPLOY_PATH} $<TARGET_FILE:igal>
     )
 endif()
-
