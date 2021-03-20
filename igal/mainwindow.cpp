@@ -325,6 +325,33 @@ void MainWindow::resetVideoSpeed()
     player->setPlaybackRate(1);
 }
 
+void MainWindow::addZoom(float amount)
+{
+    zoom += amount;
+    if (zoom < 1.0F)
+    {
+        zoom = 1;
+    }
+    reloadCurrentImage();
+}
+
+void MainWindow::addOffset(float x, float y)
+{
+    currentX += x;
+    currentY += y;
+    reloadCurrentImage();
+
+    return;
+}
+
+void MainWindow::resetZoomAndOffset()
+{
+    zoom = 1;
+    currentX = 0;
+    currentY = 0;
+    reloadCurrentImage();
+}
+
 void MainWindow::keyPressEvent(QKeyEvent* e)
 {
     QMainWindow::keyPressEvent(e);
@@ -418,13 +445,79 @@ void MainWindow::keyPressEvent(QKeyEvent* e)
         loadLastItem();
         break;
 
+    case Qt::Key_Plus:
+        addZoom(0.1F);
+        break;
+
+    case Qt::Key_Minus:
+        addZoom(-0.1F);
+        break;
+
+    case Qt::Key_8:
+        addOffset(0, -10);
+        break;
+
+    case Qt::Key_6:
+        addOffset(10, 0);
+        break;
+
+    case Qt::Key_4:
+        addOffset(-10, 0);
+        break;
+
+    case Qt::Key_2:
+        addOffset(0, 10);
+        break;
+
+    case Qt::Key_0:
+        resetZoomAndOffset();
+        break;
+
     default:
         break;
     }
 }
 
+template<typename T>
+T getSign(T val)
+{
+    return val < 0 ? -1 : 1;
+}
+
 QPixmap MainWindow::getTransformedPixmap(const QPixmap* px)
 {
+    // TODO: fix zoom-out overflowing
+    if (!ui->image_view->pixmap() || ui->image_view->pixmap()->isNull())
+    {
+        return *px;
+    }
+
+    float pxmapW = ui->image_view->pixmap()->width();
+    float pxmapH = ui->image_view->pixmap()->height();
+
+    float maxRadiusX = std::abs((pxmapW - width()) / 2);
+    float maxRadiusY = std::abs((pxmapH - height()) / 2);
+
+    if (pxmapW <= width())
+    {
+        currentX = 0;
+    }
+
+    if (pxmapH <= height())
+    {
+        currentY = 0;
+    }
+
+    if (std::abs(currentX) > maxRadiusX)
+    {
+        currentX = maxRadiusX * getSign(currentX);
+    }
+
+    if (std::abs(currentY) > maxRadiusY)
+    {
+        currentY = maxRadiusY * getSign(currentY);
+    }
+
     QPixmap result = *px;
     result.scroll(currentX, currentY, result.rect());
     return result.scaled(size() * zoom, Qt::KeepAspectRatio, Qt::SmoothTransformation);
@@ -444,7 +537,7 @@ void MainWindow::resizeEnd()
 {
     if (!video->isVisible())
     {
-        reloadTarget();
+        reloadCurrentImage();
     }
 }
 
@@ -747,6 +840,11 @@ void MainWindow::reloadTarget()
         target = itemList[itemListIndex];
         loadItem();
     }
+}
+
+void MainWindow::reloadCurrentImage()
+{
+    playImage(&currentImage.value());
 }
 
 void MainWindow::setupItemList()

@@ -57,6 +57,7 @@ private:
     void loadLastItem();
 
     void reloadTarget();
+    void reloadCurrentImage();
 
     void setupItemList();
 
@@ -79,6 +80,10 @@ private:
     void resetVideoSpeed();
 
     QPixmap getTransformedPixmap(const QPixmap*);
+
+    void addZoom(float amount);
+    void addOffset(float x, float y);
+    void resetZoomAndOffset();
 
     std::unique_ptr<Ui::MainWindow> ui;
     fs_str_t target;
