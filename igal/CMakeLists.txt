@@ -43,6 +43,11 @@ if(WIN32)
 
     add_custom_command(
         TARGET igal
-        COMMAND ${QT_WINDEPLOY_PATH} $<TARGET_FILE:igal>
+        COMMAND ${QT_WINDEPLOY_PATH} $<TARGET_FILE:igal> 
+        --no-translations 
+        --no-opengl-sw 
+        --no-angle
+        --no-system-d3d-compiler
+        --no-compiler-runtime
     )
 endif()

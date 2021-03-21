@@ -18,19 +18,40 @@
 #if defined(WIN32) || defined(_WIN32)
     #include "win32/utils.h"
     #define FSSTR(str) L##str
-    #define FSSYSTEM(arg) execProc(arg)
-    #define FSSTR_TO_QSTRING(str) QString::fromStdWString(str)
-    #define QSTRING_TO_FSSTR(str) str.toStdWString()
 #else
     #define FSSTR(str) str.
-    #define FSSYSTEM(arg) system(arg)
-    #define FSSTR_TO_QSTRING(str) QString::fromStdString(str)
-    #define QSTRING_TO_FSSTR(str) str.toStdString()
 #endif
 
 const fs_str_t CACHE_DIR = FSSTR(".igal_cache");
 const fs_str_t DIR_SEPARATOR = FSSTR("/");
 const fs_str_t OS_VID_FMT = FSSTR(".mp4");
+
+QString fsstr_to_qstring(const fs_str_t& str)
+{
+    #if defined(WIN32) || defined(_WIN32)
+        return QString::fromStdWString(str);
+    #else
+        return QString::fromStdString(str);
+    #endif
+}
+
+fs_str_t qstring_to_fsstr(const QString& str)
+{
+    #if defined(WIN32) || defined(_WIN32)
+        return str.toStdWString();
+    #else
+        return str.toStdString();
+    #endif
+}
+
+void fs_system(const fs_str_t& cmdline)
+{
+    #if defined(WIN32) || defined(_WIN32)
+        execProc(cmdline);
+    #else
+        system(cmdline);
+    #endif
+}
 
 const std::set<fs_str_t> validExtensions = {
     FSSTR(".jpg"),
@@ -68,7 +89,7 @@ const std::set<fs_str_t> videoExtensions = {
 
 fs_str_t fsStrToLower(const fs_str_t& src)
 {
-    return QSTRING_TO_FSSTR(FSSTR_TO_QSTRING(src).toLower());
+    return qstring_to_fsstr(fsstr_to_qstring(src).toLower());
 }
 
 size_t genLargeRand()
@@ -611,7 +632,7 @@ fs_str_t getCachedAnimatedPath(const fs_str_t& target)
         initCacheDir(target);
 
         fs_str_t ffmpeg_cmd_mp4 = genFfmpegCmd(target, cached_path);
-        FSSYSTEM(ffmpeg_cmd_mp4.c_str());
+        fs_system(ffmpeg_cmd_mp4.c_str());
 
         bool ok = std::filesystem::exists(target);
     }
@@ -626,7 +647,7 @@ void MainWindow::playVideo(const fs_str_t& vpath)
 
     ui->image_view->setPixmap(QPixmap());
 
-    auto media = QUrl::fromLocalFile(FSSTR_TO_QSTRING(vpath.c_str()));
+    auto media = QUrl::fromLocalFile(fsstr_to_qstring(vpath.c_str()));
 
     playlist->clear();
     playlist->addMedia(media);
@@ -658,7 +679,7 @@ void MainWindow::playImage(const fs_str_t& ipath)
     player->stop();
     playlist->clear();
 
-    currentImage = QImage(FSSTR_TO_QSTRING(ipath));
+    currentImage = QImage(fsstr_to_qstring(ipath));
 
     QPixmap pxmap = QPixmap::fromImage(*currentImage);
     ui->image_view->setPixmap(getTransformedPixmap(&pxmap));
@@ -726,7 +747,7 @@ void MainWindow::loadImage(QImage* pixmap)
 
 void MainWindow::loadItem()
 {
-    setWindowTitle(FSSTR_TO_QSTRING(getTargetFilename(target)));
+    setWindowTitle(fsstr_to_qstring(getTargetFilename(target)));
 
     std::string ext = std::filesystem::path(target).extension().string();
 
@@ -761,7 +782,7 @@ void MainWindow::loadSurroundingPrev()
 
             if (isImage(prevTarget))
             {
-                surroundingPrev = QImage(FSSTR_TO_QSTRING(prevTarget));
+                surroundingPrev = QImage(fsstr_to_qstring(prevTarget));
                 surroundingPrevReady = true;
             }
         }).detach();
@@ -781,7 +802,7 @@ void MainWindow::loadSurroundingNext()
 
             if (isImage(nextTarget))
             {
-                surroundingNext = QImage(FSSTR_TO_QSTRING(nextTarget));
+                surroundingNext = QImage(fsstr_to_qstring(nextTarget));
                 surroundingNextReady = true;
             }
         }).detach();
@@ -811,7 +832,7 @@ void MainWindow::previousItem()
         }
 
         target = prevName;
-        setWindowTitle(FSSTR_TO_QSTRING(getTargetFilename(prevName)));
+        setWindowTitle(fsstr_to_qstring(getTargetFilename(prevName)));
         loadImage(&surroundingPrev.value());
     }
     else
@@ -844,7 +865,7 @@ void MainWindow::nextItem()
         }
 
         target = nextName;
-        setWindowTitle(FSSTR_TO_QSTRING(getTargetFilename(nextName)));
+        setWindowTitle(fsstr_to_qstring(getTargetFilename(nextName)));
         loadImage(&surroundingNext.value());
     }
     else
