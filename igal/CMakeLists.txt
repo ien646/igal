@@ -50,4 +50,6 @@ if(WIN32)
         --no-system-d3d-compiler
         --no-compiler-runtime
     )
+else()
+    target_sources(igal PRIVATE posix/utils.cpp)
 endif()

@@ -1,32 +1,41 @@
 #include "mainwindow.h"
 
+#include <QtCore/qdir.h>
+
 #include <QtGui/qevent.h>
 
 #include <QtMultimedia/qmediacontent.h>
+
+#include <QtWidgets/qmessagebox.h>
 
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <map>
-#include <set>
 #include <sstream>
 #include <string>
 #include <thread>
+#include <unordered_set>
 
 // Bullshit to deal with windows/linux handling of wstrings/utf-8 strings
 #if defined(WIN32) || defined(_WIN32)
     #include "win32/utils.h"
     #define FSSTR(str) L##str
-#else
+    const fs_str_t DIR_SEPARATOR = FSSTR("\\");
+
+#elif defined(_POSIX_VERSION)
+    #include "posix/utils.h"
     #define FSSTR(str) str.
+    const fs_str_t DIR_SEPARATOR = FSSTR("/");
+
 #endif
 
 const fs_str_t CACHE_DIR = FSSTR(".igal_cache");
-const fs_str_t DIR_SEPARATOR = FSSTR("/");
 const fs_str_t OS_VID_FMT = FSSTR(".mp4");
+const fs_str_t LINKS_FILE = FSSTR("links.txt");
 
-QString fsstr_to_qstring(const fs_str_t& str)
+QString fsstrToQstring(const fs_str_t& str)
 {
     #if defined(WIN32) || defined(_WIN32)
         return QString::fromStdWString(str);
@@ -35,7 +44,20 @@ QString fsstr_to_qstring(const fs_str_t& str)
     #endif
 }
 
-fs_str_t qstring_to_fsstr(const QString& str)
+void debugMessageBox(QString title, QString text)
+{
+    QMessageBox msgbox;
+    msgbox.setWindowTitle(title);
+    msgbox.setText(text);
+    msgbox.exec();
+}
+
+fs_str_t getExecutableDir()
+{
+    return getExeDir();
+}
+
+fs_str_t qstringToFsstr(const QString& str)
 {
     #if defined(WIN32) || defined(_WIN32)
         return str.toStdWString();
@@ -53,43 +75,47 @@ void fs_system(const fs_str_t& cmdline)
     #endif
 }
 
-const std::set<fs_str_t> validExtensions = {
+const std::unordered_set<fs_str_t> imageExtensions = {
     FSSTR(".jpg"),
     FSSTR(".jpeg"),
     FSSTR(".png"),
-    FSSTR(".gif"),
-    FSSTR(".mp4"),
-    FSSTR(".webm"),
-    FSSTR(".avi"),
-#if defined(WIN32) || defined(_WIN32)
-    FSSTR(".wmv"),
-#endif
+    FSSTR(".tga"),
+    FSSTR(".tiff"),
+    FSSTR(".webp")
 };
 
-const std::set<fs_str_t> imageExtensions = {
-    FSSTR(".jpg"),
-    FSSTR(".jpeg"),
-    FSSTR(".png")
-};
-
-const std::set<fs_str_t> animationExtensions = {
+const std::unordered_set<fs_str_t> animationExtensions = {
     FSSTR(".png"),
     FSSTR(".gif")
 };
 
-const std::set<fs_str_t> videoExtensions = {
+const std::unordered_set<fs_str_t> videoExtensions = {
+    FSSTR(".avi"),
+    FSSTR(".m4v"),
     FSSTR(".mp4"),
     FSSTR(".webm"),
-    FSSTR(".avi")
 
 #if defined(WIN32) || defined(_WIN32)
     FSSTR(".wmv"),
 #endif
 };
 
+std::unordered_set<fs_str_t> getValidExtensions()
+{
+    std::unordered_set<fs_str_t> result;
+
+    std::copy(imageExtensions.begin(), imageExtensions.end(), std::inserter(result, result.begin()));
+    std::copy(animationExtensions.begin(), animationExtensions.end(), std::inserter(result, result.begin()));
+    std::copy(videoExtensions.begin(), videoExtensions.end(), std::inserter(result, result.begin()));
+
+    return result;
+}
+
+const std::unordered_set<fs_str_t> validExtensions = getValidExtensions();
+
 fs_str_t fsStrToLower(const fs_str_t& src)
 {
-    return qstring_to_fsstr(fsstr_to_qstring(src).toLower());
+    return qstringToFsstr(fsstrToQstring(src).toLower());
 }
 
 size_t genLargeRand()
@@ -131,6 +157,8 @@ MainWindow::MainWindow(const fs_str_t& target, QWidget* parent) :
     resizeTimer.setSingleShot(true);
     connect(&resizeTimer, SIGNAL(timeout()), SLOT(resizeEnd()));
 
+    loadLinks();
+
     srand(std::chrono::system_clock::now().time_since_epoch().count());
 
     player = std::make_unique<QMediaPlayer>();
@@ -146,6 +174,8 @@ MainWindow::MainWindow(const fs_str_t& target, QWidget* parent) :
     videoInfoLabel->setVisible(false);
     videoInfoLabel->setAutoFillBackground(false);
     videoInfoLabel->setStyleSheet("color: #EEEEEE;");
+
+    videoInfoFontMetrics = std::make_unique<QFontMetrics>(videoInfoLabel->fontMetrics());
 
     centralWidget()->layout()->addWidget(video.get());
     video->setContentsMargins(0, 0, 0, 0);
@@ -225,8 +255,7 @@ void MainWindow::showVideoInfo()
         posText += " (x" + std::to_string(player->playbackRate()) +")";
     }
     videoInfoLabel->setText(QString::fromStdString(posText));
-    QFontMetricsF met(videoInfoLabel->font());
-    videoInfoLabel->setGeometry(0, 0, met.horizontalAdvance(QString::fromStdString(posText)), videoInfoLabel->font().pixelSize());
+    videoInfoLabel->setGeometry(0, 0, videoInfoFontMetrics->horizontalAdvance(QString::fromStdString(posText)), videoInfoLabel->font().pixelSize());
 }
 
 void MainWindow::hideVideoInfo()
@@ -406,6 +435,66 @@ void MainWindow::showImage()
     ui->image_view->setVisible(true);
 }
 
+void MainWindow::loadLinks()
+{
+    auto curPath = getExeDir();
+    auto linksPath = curPath + DIR_SEPARATOR + LINKS_FILE;
+    if (std::filesystem::exists(linksPath))
+    {
+        std::stringstream sstr;
+        std::ifstream ifs(linksPath);
+
+        sstr << ifs.rdbuf();
+
+        std::string text = sstr.str();
+
+        if (text.empty())
+        {
+            return;
+        }
+
+        QString qtext = QString::fromStdString(text);
+        for (const auto& line : qtext.replace("\r", "").split('\n'))
+        {
+            auto segments = line.split(':');
+            QChar key = segments[0].at(0);
+            QString dir = segments[1];
+
+            links.emplace(key.toLatin1(), qstringToFsstr(dir));
+        }
+    }
+}
+
+void MainWindow::copyToDir(const fs_str_t& dir)
+{
+    auto fulldir = currentDir + dir;
+    if (std::filesystem::exists(fulldir) && std::filesystem::exists(target))
+    {        
+        std::filesystem::copy_file(target, fulldir + DIR_SEPARATOR + getTargetFilename(target), std::filesystem::copy_options::skip_existing);
+    }
+
+    videoInfoLabel->setVisible(true);
+    videoInfoLabel->setText("Copied to " + fsstrToQstring(dir));
+
+    std::thread([&]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(750));
+        if (!videoMode)
+        {
+            QMetaObject::invokeMethod(this, [&]() { videoInfoLabel->setVisible(false); });            
+        }
+    }).detach();
+}
+
+void MainWindow::checkLinksInput(int kkey)
+{
+    for (const auto& [key, dir] : links)
+    {
+        if (toupper(kkey) == key || tolower(kkey) == key)
+        {
+            copyToDir(dir);
+        }
+    }
+}
 
 void MainWindow::keyPressEvent(QKeyEvent* e)
 {
@@ -416,6 +505,11 @@ void MainWindow::keyPressEvent(QKeyEvent* e)
     bool ctrlPressed = e->modifiers().testFlag(Qt::KeyboardModifier::ControlModifier);
     bool numpadPressed = e->modifiers().testFlag(Qt::KeyboardModifier::KeypadModifier);
 
+    if (ctrlPressed && shiftPressed)
+    {
+        checkLinksInput(e->key());
+    }
+
     switch (e->key())
     {
     case 'f':
@@ -424,8 +518,8 @@ void MainWindow::keyPressEvent(QKeyEvent* e)
         break;
 
     case 'm':
-    case 'M':
-        toggleMuteVideo();
+    case 'M':        
+        toggleMuteVideo();        
         break;
 
     case 'r':
@@ -447,7 +541,6 @@ void MainWindow::keyPressEvent(QKeyEvent* e)
         break;
 
     case Qt::Key_Escape:
-        // exit fullscreen
         if (isFullScreen())
         {
             showNormal();
@@ -526,7 +619,7 @@ void MainWindow::keyPressEvent(QKeyEvent* e)
         {
             resetZoomAndOffset();
         }
-        break;
+        break;        
 
     default:
         break;
@@ -647,7 +740,7 @@ void MainWindow::playVideo(const fs_str_t& vpath)
 
     ui->image_view->setPixmap(QPixmap());
 
-    auto media = QUrl::fromLocalFile(fsstr_to_qstring(vpath.c_str()));
+    auto media = QUrl::fromLocalFile(fsstrToQstring(vpath.c_str()));
 
     playlist->clear();
     playlist->addMedia(media);
@@ -679,7 +772,7 @@ void MainWindow::playImage(const fs_str_t& ipath)
     player->stop();
     playlist->clear();
 
-    currentImage = QImage(fsstr_to_qstring(ipath));
+    currentImage = QImage(fsstrToQstring(ipath));
 
     QPixmap pxmap = QPixmap::fromImage(*currentImage);
     ui->image_view->setPixmap(getTransformedPixmap(&pxmap));
@@ -747,7 +840,7 @@ void MainWindow::loadImage(QImage* pixmap)
 
 void MainWindow::loadItem()
 {
-    setWindowTitle(fsstr_to_qstring(getTargetFilename(target)));
+    setWindowTitle(fsstrToQstring(getTargetFilename(target)));
 
     std::string ext = std::filesystem::path(target).extension().string();
 
@@ -782,7 +875,7 @@ void MainWindow::loadSurroundingPrev()
 
             if (isImage(prevTarget))
             {
-                surroundingPrev = QImage(fsstr_to_qstring(prevTarget));
+                surroundingPrev = QImage(fsstrToQstring(prevTarget));
                 surroundingPrevReady = true;
             }
         }).detach();
@@ -802,7 +895,7 @@ void MainWindow::loadSurroundingNext()
 
             if (isImage(nextTarget))
             {
-                surroundingNext = QImage(fsstr_to_qstring(nextTarget));
+                surroundingNext = QImage(fsstrToQstring(nextTarget));
                 surroundingNextReady = true;
             }
         }).detach();
@@ -832,7 +925,7 @@ void MainWindow::previousItem()
         }
 
         target = prevName;
-        setWindowTitle(fsstr_to_qstring(getTargetFilename(prevName)));
+        setWindowTitle(fsstrToQstring(getTargetFilename(prevName)));
         loadImage(&surroundingPrev.value());
     }
     else
@@ -865,7 +958,7 @@ void MainWindow::nextItem()
         }
 
         target = nextName;
-        setWindowTitle(fsstr_to_qstring(getTargetFilename(nextName)));
+        setWindowTitle(fsstrToQstring(getTargetFilename(nextName)));
         loadImage(&surroundingNext.value());
     }
     else
@@ -922,7 +1015,7 @@ void MainWindow::setupItemList()
 {
     namespace stdfs = std::filesystem;
     std::multimap<long long, stdfs::path> paths;
-    for (auto f : stdfs::directory_iterator(currentDir))
+    for (const auto& f : stdfs::directory_iterator(currentDir))
     {
         fs_str_t ext = getTargetExtension(f.path());
         if (stdfs::is_regular_file(f)

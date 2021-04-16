@@ -36,7 +36,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(const fs_str_t& target, QWidget *parent = nullptr);   
+    explicit MainWindow(const fs_str_t& target, QWidget *parent = nullptr);
 
     void keyPressEvent(QKeyEvent* e) override;
     void resizeEvent(QResizeEvent* e) override;
@@ -79,6 +79,8 @@ private:
     void decreaseVideoSpeed(float v);
     void resetVideoSpeed();
 
+    void copyToDir(const fs_str_t& dir);
+
     QPixmap getTransformedPixmap(const QPixmap*);
 
     void addZoom(float amount);
@@ -91,6 +93,9 @@ private:
     void hideImage();
     void showImage();
 
+    void loadLinks();
+    void checkLinksInput(int key);
+
     bool videoMode = false;
 
     std::unique_ptr<Ui::MainWindow> ui;
@@ -100,6 +105,9 @@ private:
     std::unique_ptr<QMediaPlaylist> playlist;
     std::unique_ptr<QVideoWidget> video;
     std::unique_ptr<QLabel> videoInfoLabel;
+    std::unique_ptr<QFontMetrics> videoInfoFontMetrics;
+
+    std::unordered_map<char, fs_str_t> links;
 
     bool itemListReady = false;
     std::vector<fs_str_t> itemList;
