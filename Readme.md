@@ -1,3 +1,4 @@
+
 # igal: Multimedia gallery
 
 ## **Controls**
@@ -20,17 +21,23 @@
 
 * `Ctrl+Left/Rigth arrow`: Skip/rewind video
 * `Ctrl+Shift+Left/Right arrow`: Skip/rewind video (fast)
-* `Alt+Left/Right arrow`: Increase/decrease playback speed
+* `Shift+Up/Down arrow`: Increase/decrease playback speed
 * `Alt+0`: Reset playback speed
+* `M`: Mute audio
+* `P`: Stop/Resume
 
 ## **Build requirements**
 
 * CMake >= 3.14
 * C++17 compatible compiler
-* Qt5
-* Set ${QT_DIR} to Qt SDK path (example on Windows: C:\Qt\5.15.2\msvc2019_64)
+* Qt5 and Qt5Multimedia extensions. 
+* <u>**Windows specific**</u>:
+    * Set ${QT_DIR} to Qt SDK path (example: C:\Qt\5.15.2\msvc2019_64)
+* <u>**Linux specific**</u>:
+	* libqt5multimedia5-plugins (video playback)
 
 ## **Usage requirements**
+* `ffmpeg` available in $PATH
+* Appropiate video drivers for playback
 
-* `ffmpeg` in PATH
-* Appropiate video drivers for input formats
+

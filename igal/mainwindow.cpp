@@ -19,16 +19,18 @@
 #include <unordered_set>
 
 // Bullshit to deal with windows/linux handling of wstrings/utf-8 strings
-#if defined(WIN32) || defined(_WIN32)
+#if defined(WIN32) || defined(_WIN32) || defined(IGAL_PLATFORM_OVERRIDE_WIN32)
     #include "win32/utils.h"
     #define FSSTR(str) L##str
     const fs_str_t DIR_SEPARATOR = FSSTR("\\");
 
-#elif defined(_POSIX_VERSION)
+#elif defined(__linux__) || defined(__APPLE__) || defined(IGAL_PLATFORM_OVERRIDE_LINUX) || defined(IGAL_PLATFORM_OVERRIDE_MACOS)
     #include "posix/utils.h"
-    #define FSSTR(str) str.
+    #define FSSTR(str) str
     const fs_str_t DIR_SEPARATOR = FSSTR("/");
 
+#else
+    #error "Unknown platform!"
 #endif
 
 const fs_str_t CACHE_DIR = FSSTR(".igal_cache");
@@ -71,7 +73,7 @@ void fs_system(const fs_str_t& cmdline)
     #if defined(WIN32) || defined(_WIN32)
         execProc(cmdline);
     #else
-        system(cmdline);
+        system(cmdline.c_str());
     #endif
 }
 
@@ -635,13 +637,13 @@ T getSign(T val)
 QPixmap MainWindow::getTransformedPixmap(const QPixmap* px)
 {
     // TODO: fix zoom-out overflowing
-    if (!ui->image_view->pixmap(Qt::ReturnByValue) || ui->image_view->pixmap(Qt::ReturnByValue).isNull())
+    if (!ui->image_view->pixmap() || ui->image_view->pixmap()->isNull())
     {
         return px->scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
     }
 
-    float pxmapW = ui->image_view->pixmap(Qt::ReturnByValue).width();
-    float pxmapH = ui->image_view->pixmap(Qt::ReturnByValue).height();
+    float pxmapW = ui->image_view->pixmap()->width();
+    float pxmapH = ui->image_view->pixmap()->height();
 
     float maxRadiusX = std::abs((pxmapW - width()) / 2);
     float maxRadiusY = std::abs((pxmapH - height()) / 2);
@@ -673,10 +675,9 @@ QPixmap MainWindow::getTransformedPixmap(const QPixmap* px)
 
 void MainWindow::resizeEvent(QResizeEvent* e)
 {
-    if (!videoMode && !ui->image_view->pixmap(Qt::ReturnByValue).isNull())
+    if (!videoMode && !ui->image_view->pixmap()->isNull())
     {
-        QPixmap pxmap = ui->image_view->pixmap(Qt::ReturnByValue);
-        ui->image_view->setPixmap(getTransformedPixmap(&pxmap));
+        ui->image_view->setPixmap(getTransformedPixmap(ui->image_view->pixmap()));
         resizeTimer.start(200);
     }
     QWidget::resizeEvent(e);
