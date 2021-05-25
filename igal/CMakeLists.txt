@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(CMAKE_PREFIX_PATH $ENV{QT_DIR})
+if(WIN32)
+    set(CMAKE_PREFIX_PATH $ENV{QT_DIR})
+endif()
 
 find_package(
     Qt5
@@ -52,4 +54,7 @@ if(WIN32)
     )
 else()
     target_sources(igal PRIVATE posix/utils.cpp)
+
+    find_package(Threads REQUIRED)
+    target_link_libraries(igal Threads::Threads)
 endif()
