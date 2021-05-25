@@ -467,22 +467,33 @@ void MainWindow::loadLinks()
 
 void MainWindow::copyToDir(const fs_str_t& dir)
 {
+    auto showTip = [&]() {
+        videoInfoLabel->setVisible(true);
+        videoInfoLabel->setText("Copied to " + fsstrToQstring(dir));
+
+        std::thread([&]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(750));
+            if (!videoMode)
+            {
+                QMetaObject::invokeMethod(this, [&]() { videoInfoLabel->setVisible(false); });
+            }
+        }).detach();
+    };
+
     auto fulldir = currentDir + dir;
+    auto dirUp1 = currentDir + FSSTR("..") + DIR_SEPARATOR + dir;
     if (std::filesystem::exists(fulldir) && std::filesystem::exists(target))
     {        
-        std::filesystem::copy_file(target, fulldir + DIR_SEPARATOR + getTargetFilename(target), std::filesystem::copy_options::skip_existing);
+        auto dest = fulldir + DIR_SEPARATOR + getTargetFilename(target);
+        bool copy_ok = std::filesystem::copy_file(target, dest, std::filesystem::copy_options::skip_existing);
+        showTip();
     }
-
-    videoInfoLabel->setVisible(true);
-    videoInfoLabel->setText("Copied to " + fsstrToQstring(dir));
-
-    std::thread([&]() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(750));
-        if (!videoMode)
-        {
-            QMetaObject::invokeMethod(this, [&]() { videoInfoLabel->setVisible(false); });            
-        }
-    }).detach();
+    else if (std::filesystem::exists(dirUp1) && std::filesystem::exists(target))
+    {
+        auto dest = dirUp1 + DIR_SEPARATOR + getTargetFilename(target);
+        bool copy_ok = std::filesystem::copy_file(target, dest, std::filesystem::copy_options::skip_existing);
+        showTip();
+    }    
 }
 
 void MainWindow::checkLinksInput(int kkey)
@@ -713,7 +724,7 @@ bool isAnimatedPng(const fs_str_t& target)
 
 fs_str_t genFfmpegCmd(const fs_str_t& source, const fs_str_t& target)
 {
-    return FSSTR("ffmpeg -y -i ") + source + FSSTR(" ") + target;
+    return FSSTR("ffmpeg -y -i \"") + source + FSSTR("\" -pix_fmt yuv420p \"") + target + FSSTR("\"");
 }
 
 fs_str_t getCachedAnimatedPath(const fs_str_t& target)
@@ -728,6 +739,10 @@ fs_str_t getCachedAnimatedPath(const fs_str_t& target)
         fs_system(ffmpeg_cmd_mp4.c_str());
 
         bool ok = std::filesystem::exists(target);
+        if (!ok)
+        {
+            return fs_str_t();
+        }
     }
 
     return cached_path;

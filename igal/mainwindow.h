@@ -96,6 +96,8 @@ private:
     void loadLinks();
     void checkLinksInput(int key);
 
+    void deleteCurrent();
+
     bool videoMode = false;
 
     std::unique_ptr<Ui::MainWindow> ui;
